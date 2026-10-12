@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dapur Mario - Pengelasan Bahan Kering & Basah</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Kids & Mario Vibe -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Fredoka', cursive, sans-serif;
+            background-color: #5c94fc;
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(255,255,255,0.4) 0%, transparent 20%),
+                radial-gradient(circle at 85% 30%, rgba(255,255,255,0.4) 0%, transparent 25%),
+                radial-gradient(circle at 50% 80%, rgba(255,255,255,0.3) 0%, transparent 30%);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .font-mario {
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        .mario-border {
+            border: 4px solid #000;
+            box-shadow: 6px 6px 0px rgba(0,0,0,0.3);
+        }
+
+        .mario-box-yellow {
+            background-color: #f8b800;
+            border: 4px solid #000;
+            box-shadow: inset -4px -4px 0px #c87800, inset 4px 4px 0px #fce0a8, 6px 6px 0px rgba(0,0,0,0.3);
+        }
+
+        .pipe-green {
+            background: linear-gradient(90deg, #00a800 0%, #00f800 30%, #00a800 70%, #005000 100%);
+            border: 4px solid #000;
+            box-shadow: inset 0 8px 0 rgba(255,255,255,0.5), 6px 6px 0px rgba(0,0,0,0.3);
+        }
+
+        .pipe-brown {
+            background: linear-gradient(90deg, #b86000 0%, #f8a030 30%, #b86000 70%, #602800 100%);
+            border: 4px solid #000;
+            box-shadow: inset 0 8px 0 rgba(255,255,255,0.4), 6px 6px 0px rgba(0,0,0,0.3);
+        }
+
+        .mario-card {
+            border: 4px solid #000;
+            box-shadow: 5px 5px 0px rgba(0,0,0,0.25);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .mario-card:active {
+            transform: translate(3px, 3px);
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.25);
+        }
+
+        .selected-card {
+            outline: 6px solid #ff0000;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #ffff00;
+        }
+
+        /* Animations */
+        @keyframes coinBounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-8px) scale(1.15); }
+        }
+        .coin-anim {
+            animation: coinBounce 1s infinite ease-in-out;
+        }
+
+        /* Canvas fireworks */
+        #fx-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-2 sm:p-4 text-gray-900">
+
+    <!-- Canvas for Victory Fireworks/Coins -->
+    <canvas id="fx-canvas"></canvas>
+
+    <!-- HEADER BAR -->
+    <header class="max-w-4xl mx-auto w-full bg-red-600 text-white rounded-3xl p-3 sm:p-4 mario-border mb-3">
+        <div class="flex flex-wrap justify-between items-center gap-2">
+            <!-- Title with Mario Icon -->
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 bg-yellow-400 rounded-2xl border-2 border-black flex items-center justify-center text-3xl shadow-md">
+                    🍄
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-2xl font-black text-yellow-300 drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)] tracking-wide">
+                        MARIO: KELASKAN BAHAN MASAKAN
+                    </h1>
+                    <p class="text-xs sm:text-sm text-yellow-100 font-bold">
+                        Pendidikan Khas
+                    </p>
+                </div>
+            </div>
+
+            <!-- Score & Sound Control -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <!-- Score -->
+                <div class="bg-black/50 px-3 py-1.5 sm:px-4 sm:py-2 rounded-2xl border-2 border-yellow-400 flex items-center space-x-2">
+                    <span class="text-yellow-300 text-xl sm:text-2xl coin-anim">🪙</span>
+                    <span id="score-display" class="text-xl sm:text-2xl font-black text-yellow-300">0</span>
+                </div>
+
+                <!-- Sound FX Toggle -->
+                <button id="sfx-btn" onclick="toggleSound()" class="bg-yellow-400 hover:bg-yellow-300 text-black px-3 py-2 rounded-2xl border-2 border-black font-extrabold flex items-center justify-center shadow-md active:scale-95" title="Kesan Bunyi">
+                    <span id="sfx-icon" class="text-xl">🔔</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MODE NAVIGATION TABS -->
+    <main class="max-w-4xl mx-auto w-full flex-grow flex flex-col">
+        <nav class="grid grid-cols-3 gap-2 mb-3">
+            <button onclick="switchMode('satu')" id="btn-mode-satu" class="mode-tab bg-yellow-400 text-black border-4 border-black font-black text-xs sm:text-base py-3 px-1 rounded-2xl shadow-md transition flex flex-col sm:flex-row items-center justify-center gap-1 text-center">
+                <span class="text-xl sm:text-2xl">🎯</span>
+                <span id="txt-tab1-bm" class="font-extrabold">Mod 1: Satu-Satu</span>
+            </button>
+            <button onclick="switchMode('semua')" id="btn-mode-semua" class="mode-tab bg-white text-gray-800 border-4 border-black font-black text-xs sm:text-base py-3 px-1 rounded-2xl shadow-md transition flex flex-col sm:flex-row items-center justify-center gap-1 text-center">
+                <span class="text-xl sm:text-2xl">📦</span>
+                <span id="txt-tab2-bm" class="font-extrabold">Mod 2: Papan Pengelasan</span>
+            </button>
+            <button onclick="switchMode('resepi')" id="btn-mode-resepi" class="mode-tab bg-white text-gray-800 border-4 border-black font-black text-xs sm:text-base py-3 px-1 rounded-2xl shadow-md transition flex flex-col sm:flex-row items-center justify-center gap-1 text-center">
+                <span class="text-xl sm:text-2xl">🍳</span>
+                <span id="txt-tab3-bm" class="font-extrabold">Mod 3: Resepi Mario</span>
+            </button>
+        </nav>
+
+        <!-- MODE 1: KELASKAN SATU-SATU -->
+        <section id="sec-mode-satu" class="game-section bg-yellow-100 rounded-3xl p-4 sm:p-6 mario-border flex-grow flex flex-col justify-between">
+            <div class="text-center mb-2 bg-yellow-300 p-3 rounded-2xl border-2 border-black">
+                <h2 class="text-base sm:text-xl font-black text-red-700">
+                    👇 <span id="m1-title-bm">Tekan pada Bahan Kering atau Bahan Basah yang betul!</span>
+                </h2>
+                <p id="m1-progress" class="text-xs sm:text-sm text-yellow-900 font-extrabold mt-1">Bahan 1 daripada 6</p>
+            </div>
+
+            <!-- Single Focus Card -->
+            <div class="flex justify-center my-3">
+                <div id="m1-card" class="mario-box-yellow p-6 sm:p-8 rounded-3xl flex flex-col items-center justify-center text-center max-w-sm w-full transform transition duration-300">
+                    <div id="m1-emoji" class="text-7xl sm:text-8xl mb-3 drop-shadow-md">🌾</div>
+                    <div id="m1-nama-bm" class="text-3xl sm:text-4xl font-black text-black tracking-wider uppercase">BERAS</div>
+                </div>
+            </div>
+
+            <!-- Two Target Buttons -->
+            <div class="grid grid-cols-2 gap-4 sm:gap-8 max-w-2xl mx-auto w-full">
+                <!-- Bahan Kering -->
+                <button onclick="checkMode1('kering')" class="pipe-brown rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center hover:scale-105 active:scale-95 transition cursor-pointer">
+                    <span class="text-4xl sm:text-5xl mb-1">🏜️</span>
+                    <span class="bg-amber-900 text-yellow-300 px-4 py-2 rounded-xl font-black text-base sm:text-xl border-2 border-black tracking-wide text-center">
+                        BAHAN KERING
+                    </span>
+                    <span class="text-xs text-amber-200 font-bold mt-1 text-center">(Beras, Garam, Minyak)</span>
+                </button>
+
+                <!-- Bahan Basah -->
+                <button onclick="checkMode1('basah')" class="pipe-green rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-center hover:scale-105 active:scale-95 transition cursor-pointer">
+                    <span class="text-4xl sm:text-5xl mb-1">💧</span>
+                    <span class="bg-emerald-900 text-green-300 px-4 py-2 rounded-xl font-black text-base sm:text-xl border-2 border-black tracking-wide text-center">
+                        BAHAN BASAH
+                    </span>
+                    <span class="text-xs text-emerald-200 font-bold mt-1 text-center">(Telur, Ayam, Sayur)</span>
+                </button>
+            </div>
+
+            <div id="m1-feedback" class="mt-4 text-center font-black text-base sm:text-xl min-h-[40px] flex items-center justify-center"></div>
+        </section>
+
+        <!-- MODE 2: PAPAN PENGELASAN -->
+        <section id="sec-mode-semua" class="game-section hidden bg-sky-100 rounded-3xl p-4 sm:p-6 mario-border flex-grow flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-center mb-3 bg-sky-200 p-3 rounded-2xl border-2 border-black">
+                    <div>
+                        <h2 class="text-base sm:text-xl font-black text-blue-900">📦 Kelaskan Semua Bahan Dalam Kotak!</h2>
+                        <p class="text-xs sm:text-sm text-blue-800 font-bold">1. Tekan Bahan 👉 2. Tekan Kotak Tujuan</p>
+                    </div>
+                    <button onclick="resetMode2()" class="bg-yellow-400 hover:bg-yellow-300 text-black font-black px-3 py-2 rounded-xl border-2 border-black text-xs sm:text-sm active:scale-95">
+                        🔄 Mula Semula
+                    </button>
+                </div>
+
+                <!-- Unsorted Pool Container -->
+                <div class="bg-white/90 p-4 rounded-3xl border-4 border-dashed border-sky-400 min-h-[140px] mb-4 flex flex-wrap justify-center items-center gap-3" id="m2-pool">
+                    <!-- Cards render dynamically -->
+                </div>
+
+                <!-- 2 Target Sorting Boxes -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <!-- Box 1: Bahan Kering -->
+                    <div id="zone-m2-kering" onclick="assignMode2('kering')" class="pipe-brown rounded-3xl p-4 flex flex-col items-center min-h-[200px] cursor-pointer hover:ring-8 ring-amber-400 transition">
+                        <div class="bg-amber-900 text-yellow-300 font-black px-4 py-2 rounded-2xl border-2 border-black text-center mb-2">
+                            <span class="text-lg sm:text-xl">🏜️ KOTAK BAHAN KERING</span>
+                        </div>
+                        <div id="box-m2-kering" class="flex flex-wrap gap-2 justify-center w-full mt-2"></div>
+                    </div>
+
+                    <!-- Box 2: Bahan Basah -->
+                    <div id="zone-m2-basah" onclick="assignMode2('basah')" class="pipe-green rounded-3xl p-4 flex flex-col items-center min-h-[200px] cursor-pointer hover:ring-8 ring-emerald-400 transition">
+                        <div class="bg-emerald-900 text-green-300 font-black px-4 py-2 rounded-2xl border-2 border-black text-center mb-2">
+                            <span class="text-lg sm:text-xl">💧 KOTAK BAHAN BASAH</span>
+                        </div>
+                        <div id="box-m2-basah" class="flex flex-wrap gap-2 justify-center w-full mt-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="m2-feedback" class="mt-3 text-center font-black text-base sm:text-xl min-h-[30px]"></div>
+        </section>
+
+        <!-- MODE 3: CABARAN RESEPI NASI GORENG MARIO -->
+        <section id="sec-mode-resepi" class="game-section hidden bg-emerald-100 rounded-3xl p-4 sm:p-6 mario-border flex-grow flex flex-col justify-between">
+            <div>
+                <!-- Recipe Header -->
+                <div class="bg-emerald-300 p-3 sm:p-4 rounded-2xl border-2 border-black mb-4 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-4xl">🍳</span>
+                        <div>
+                            <h2 class="text-base sm:text-xl font-black text-emerald-950">Resepi Nasi Goreng Mario</h2>
+                            <p class="text-xs sm:text-sm text-emerald-900 font-bold">Kumpul & kelaskan bahan untuk memasak nasi goreng!</p>
+                        </div>
+                    </div>
+                    <div id="m3-count" class="bg-white font-black text-red-600 px-3 py-1.5 rounded-xl border-2 border-black text-xs sm:text-sm">
+                        0/6 Bahan
+                    </div>
+                </div>
+
+                <!-- Prompt Card -->
+                <div class="mario-box-yellow p-5 rounded-3xl text-center mb-6 max-w-lg mx-auto">
+                    <p class="text-base sm:text-xl font-black text-black mb-2" id="m3-question-text">
+                        Adakah bahan ini KERING atau BASAH?
+                    </p>
+                    <div id="m3-target-emoji" class="text-6xl mb-1">🌾</div>
+                    <div id="m3-target-nama-bm" class="text-2xl sm:text-3xl font-black text-amber-950 uppercase">BERAS</div>
+                </div>
+
+                <!-- Answer Choice Buttons -->
+                <div class="grid grid-cols-2 gap-4 max-w-md mx-auto">
+                    <button onclick="answerMode3('kering')" class="pipe-brown p-4 sm:p-5 rounded-3xl text-white font-black text-lg sm:text-xl flex flex-col items-center justify-center hover:scale-105 active:scale-95 transition">
+                        <span class="text-3xl mb-1">🏜️</span>
+                        <span>BAHAN KERING</span>
+                    </button>
+                    <button onclick="answerMode3('basah')" class="pipe-green p-4 sm:p-5 rounded-3xl text-white font-black text-lg sm:text-xl flex flex-col items-center justify-center hover:scale-105 active:scale-95 transition">
+                        <span class="text-3xl mb-1">💧</span>
+                        <span>BAHAN BASAH</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="m3-feedback" class="mt-4 text-center font-black text-base sm:text-xl min-h-[30px]"></div>
+        </section>
+    </main>
+
+    <!-- FOOTER / NOTA GURU -->
+    <footer class="max-w-4xl mx-auto w-full mt-3 bg-white rounded-2xl p-2.5 sm:p-3 border-4 border-black text-xs sm:text-sm flex flex-wrap justify-between items-center gap-2">
+        <div class="flex items-center space-x-2 text-gray-800">
+            <span class="bg-red-600 text-white font-black px-2 py-0.5 rounded text-xs">NOTA GURU</span>
+            <span class="font-bold">Aktiviti pengelasan bahan kering & bahan basah (Kurikulum Pendidikan Khas KPM).</span>
+        </div>
+        <div class="font-black text-red-600">
+            Edisi Dapur Mario 🍄
+        </div>
+    </footer>
+
+    <!-- REWARD / WIN MODAL -->
+    <div id="win-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-yellow-300 border-4 border-black rounded-3xl p-6 max-w-md w-full text-center shadow-2xl">
+            <div class="text-7xl mb-2 coin-anim">🌟</div>
+            <h2 class="text-3xl font-black text-red-600 mb-1 font-mario drop-shadow-[0_2px_0_#000]">SYABAS!</h2>
+            <p id="win-msg" class="text-lg sm:text-xl font-black text-black mb-4">Kamu berjaya mengelaskan semua bahan masakan Mario!</p>
+            
+            <div class="bg-white p-4 rounded-2xl border-2 border-black mb-4 flex justify-center items-center space-x-3">
+                <span class="text-4xl">🪙</span>
+                <span id="final-score" class="text-4xl font-black text-yellow-600">0</span>
+                <span class="text-xl font-black">MATA</span>
+            </div>
+
+            <button onclick="closeWinModal()" class="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 px-6 rounded-2xl border-4 border-black text-xl shadow-lg active:scale-95 transition">
+                🔴 MAIN LAGI!
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /* ==================== DATA MATERIALS ==================== */
+        const INGREDIENTS = [
+            {
+                id: 'beras',
+                namaBM: 'Beras',
+                kategori: 'kering',
+                emoji: '🌾',
+                bg: 'bg-amber-100 border-amber-600 text-amber-950'
+            },
+            {
+                id: 'garam',
+                namaBM: 'Garam',
+                kategori: 'kering',
+                emoji: '🧂',
+                bg: 'bg-slate-100 border-slate-500 text-slate-900'
+            },
+            {
+                id: 'minyak',
+                namaBM: 'Minyak',
+                kategori: 'kering',
+                emoji: '🍾',
+                bg: 'bg-yellow-100 border-yellow-600 text-yellow-950'
+            },
+            {
+                id: 'telur',
+                namaBM: 'Telur',
+                kategori: 'basah',
+                emoji: '🥚',
+                bg: 'bg-orange-100 border-orange-500 text-orange-950'
+            },
+            {
+                id: 'ayam',
+                namaBM: 'Ayam',
+                kategori: 'basah',
+                emoji: '🍗',
+                bg: 'bg-red-100 border-red-500 text-red-950'
+            },
+            {
+                id: 'sayur',
+                namaBM: 'Sayur Campuran',
+                kategori: 'basah',
+                emoji: '🥗',
+                bg: 'bg-green-100 border-green-600 text-green-950'
+            }
+        ];
+
+        /* Game States */
+        let totalScore = 0;
+        let isSoundEnabled = true;
+
+        /* MODE 1 STATES */
+        let m1Index = 0;
+        let m1List = [];
+
+        /* MODE 2 STATES */
+        let m2Remaining = [];
+        let m2Selected = null;
+
+        /* MODE 3 STATES */
+        let m3Index = 0;
+        let m3List = [];
+
+        /* ==================== RETRO SOUND SYNTHESIZER (WEB AUDIO API) ==================== */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (!isSoundEnabled) return;
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'coin') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(987.77, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(1318.51, audioCtx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                } else if (type === 'correct') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.08);
+                    osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.16);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.35);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(140, audioCtx.currentTime + 0.12);
+                    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.3);
+                } else if (type === 'win') {
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const noteOsc = audioCtx.createOscillator();
+                        const noteGain = audioCtx.createGain();
+                        noteOsc.type = 'triangle';
+                        noteOsc.frequency.setValueAtTime(freq, audioCtx.currentTime + (idx * 0.12));
+                        noteGain.gain.setValueAtTime(0.25, audioCtx.currentTime + (idx * 0.12));
+                        noteGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + (idx * 0.12) + 0.25);
+                        noteOsc.connect(noteGain);
+                        noteGain.connect(audioCtx.destination);
+                        noteOsc.start(audioCtx.currentTime + (idx * 0.12));
+                        noteOsc.stop(audioCtx.currentTime + (idx * 0.12) + 0.25);
+                    });
+                }
+            } catch (e) {
+                console.log("Audio not supported or restricted");
+            }
+        }
+
+        function toggleSound() {
+            isSoundEnabled = !isSoundEnabled;
+            const btn = document.getElementById('sfx-btn');
+            const icon = document.getElementById('sfx-icon');
+            if (isSoundEnabled) {
+                icon.textContent = '🔔';
+                btn.classList.replace('bg-gray-400', 'bg-yellow-400');
+                playSound('coin');
+            } else {
+                icon.textContent = '🔕';
+                btn.classList.replace('bg-yellow-400', 'bg-gray-400');
+            }
+        }
+
+        function addScore(pts) {
+            totalScore += pts;
+            document.getElementById('score-display').textContent = totalScore;
+            playSound('coin');
+            triggerCoinsAnimation();
+        }
+
+        /* ==================== MODE SWITCHING ==================== */
+        function switchMode(modeKey) {
+            playSound('coin');
+            document.querySelectorAll('.game-section').forEach(sec => sec.classList.add('hidden'));
+            document.querySelectorAll('.mode-tab').forEach(btn => {
+                btn.classList.remove('bg-yellow-400', 'text-black');
+                btn.classList.add('bg-white', 'text-gray-800');
+            });
+
+            document.getElementById(`sec-mode-${modeKey}`).classList.remove('hidden');
+            const activeNav = document.getElementById(`btn-mode-${modeKey}`);
+            activeNav.classList.remove('bg-white', 'text-gray-800');
+            activeNav.classList.add('bg-yellow-400', 'text-black');
+
+            if (modeKey === 'satu') initMode1();
+            if (modeKey === 'semua') resetMode2();
+            if (modeKey === 'resepi') initMode3();
+        }
+
+        /* ==================== MODE 1 LOGIC (SATU-SATU) ==================== */
+        function initMode1() {
+            m1Index = 0;
+            m1List = [...INGREDIENTS].sort(() => Math.random() - 0.5);
+            renderMode1Card();
+        }
+
+        function renderMode1Card() {
+            const feedback = document.getElementById('m1-feedback');
+            feedback.innerHTML = '';
+
+            if (m1Index >= m1List.length) {
+                playSound('win');
+                feedback.innerHTML = `<span class="text-green-800 bg-white border-2 border-black px-4 py-2 rounded-2xl shadow-md">🌟 TAHNIAH! Anda Berjaya Mengelaskan Semua Bahan!</span>`;
+                setTimeout(() => {
+                    showWinModal("Tahniah! Anda telah mengelaskan semua 6 bahan dengan tepat!");
+                }, 800);
+                return;
+            }
+
+            const current = m1List[m1Index];
+            document.getElementById('m1-progress').textContent = `Bahan ${m1Index + 1} daripada ${m1List.length}`;
+            document.getElementById('m1-emoji').textContent = current.emoji;
+            document.getElementById('m1-nama-bm').textContent = current.namaBM;
+
+            const card = document.getElementById('m1-card');
+            card.classList.remove('scale-105');
+            setTimeout(() => card.classList.add('scale-100'), 50);
+        }
+
+        function checkMode1(chosenCategory) {
+            const current = m1List[m1Index];
+            const feedback = document.getElementById('m1-feedback');
+
+            if (current.kategori === chosenCategory) {
+                playSound('correct');
+                addScore(10);
+                const katLabel = chosenCategory === 'kering' ? 'KERING' : 'BASAH';
+                feedback.innerHTML = `<span class="text-emerald-800 bg-green-200 border-2 border-green-600 px-4 py-1.5 rounded-2xl">✅ BETUL! ${current.namaBM} ialah BAHAN ${katLabel}!</span>`;
+
+                const card = document.getElementById('m1-card');
+                card.classList.add('scale-105');
+
+                setTimeout(() => {
+                    m1Index++;
+                    renderMode1Card();
+                }, 1100);
+            } else {
+                playSound('wrong');
+                const wrongLabel = chosenCategory === 'kering' ? 'KERING' : 'BASAH';
+                feedback.innerHTML = `<span class="text-red-600 bg-red-100 border-2 border-red-500 px-4 py-1.5 rounded-2xl">❌ CUBA LAGI! ${current.namaBM} BUKAN bahan ${wrongLabel}.</span>`;
+            }
+        }
+
+        /* ==================== MODE 2 LOGIC (PAPAN PENGELASAN) ==================== */
+        function resetMode2() {
+            m2Remaining = [...INGREDIENTS];
+            m2Selected = null;
+            document.getElementById('box-m2-kering').innerHTML = '';
+            document.getElementById('box-m2-basah').innerHTML = '';
+            document.getElementById('m2-feedback').innerHTML = '';
+            renderMode2Pool();
+        }
+
+        function renderMode2Pool() {
+            const pool = document.getElementById('m2-pool');
+            pool.innerHTML = '';
+
+            if (m2Remaining.length === 0) {
+                pool.innerHTML = `<span class="text-emerald-800 font-black text-lg sm:text-xl">🎉 HEBAT! Semua bahan telah dikelaskan ke dalam kotak yang betul!</span>`;
+                playSound('win');
+                setTimeout(() => {
+                    showWinModal("Syabas! Papan pengelasan bahan kering & basah telah selesai!");
+                }, 600);
+                return;
+            }
+
+            m2Remaining.forEach(item => {
+                const isSelected = m2Selected && m2Selected.id === item.id;
+                const btn = document.createElement('button');
+                btn.className = `mario-card ${item.bg} px-4 py-3 rounded-2xl font-black text-base sm:text-lg flex items-center space-x-2 cursor-pointer hover:scale-105 transition ${isSelected ? 'selected-card' : ''}`;
+                btn.innerHTML = `
+                    <span class="text-3xl sm:text-4xl">${item.emoji}</span> 
+                    <span class="text-base sm:text-lg font-black">${item.namaBM}</span>
+                `;
+                btn.onclick = () => {
+                    playSound('coin');
+                    m2Selected = item;
+                    document.getElementById('m2-feedback').innerHTML = `<span class="text-blue-900 bg-yellow-300 px-3 py-1 rounded-xl border border-black">Sila pilih KOTAK KERING atau KOTAK BASAH untuk ${item.namaBM}.</span>`;
+                    renderMode2Pool();
+                };
+                pool.appendChild(btn);
+            });
+        }
+
+        function assignMode2(targetCategory) {
+            const feedback = document.getElementById('m2-feedback');
+            if (!m2Selected) {
+                playSound('wrong');
+                feedback.innerHTML = `<span class="text-red-600 bg-white px-3 py-1 rounded-xl border border-black">Sila tekan/pilih bahan di atas terlebih dahulu!</span>`;
+                return;
+            }
+
+            if (m2Selected.kategori === targetCategory) {
+                playSound('correct');
+                addScore(10);
+                const targetText = targetCategory === 'kering' ? 'KERING' : 'BASAH';
+                feedback.innerHTML = `<span class="text-green-800 bg-green-200 border-2 border-green-600 px-4 py-1 rounded-2xl">✅ TEPAT! ${m2Selected.namaBM} dimasukkan ke Kotak ${targetText}!</span>`;
+
+                const targetBox = document.getElementById(`box-m2-${targetCategory}`);
+                const badge = document.createElement('div');
+                badge.className = `bg-white border-2 border-black px-3 py-1.5 rounded-xl font-black text-sm flex items-center space-x-1 shadow-sm`;
+                badge.innerHTML = `<span>${m2Selected.emoji}</span> <span>${m2Selected.namaBM}</span>`;
+                targetBox.appendChild(badge);
+
+                m2Remaining = m2Remaining.filter(i => i.id !== m2Selected.id);
+                m2Selected = null;
+                renderMode2Pool();
+
+            } else {
+                playSound('wrong');
+                const targetText = targetCategory === 'kering' ? 'KERING' : 'BASAH';
+                feedback.innerHTML = `<span class="text-red-600 bg-red-100 border-2 border-red-600 px-4 py-1 rounded-2xl">❌ SALAH! ${m2Selected.namaBM} bukan bahan ${targetText}. Cuba lagi!</span>`;
+            }
+        }
+
+        /* ==================== MODE 3 LOGIC (RESEPI NASI GORENG) ==================== */
+        function initMode3() {
+            m3Index = 0;
+            m3List = [...INGREDIENTS].sort(() => Math.random() - 0.5);
+            renderMode3Question();
+        }
+
+        function renderMode3Question() {
+            document.getElementById('m3-feedback').innerHTML = '';
+            document.getElementById('m3-count').textContent = `${m3Index}/${m3List.length} Bahan`;
+
+            if (m3Index >= m3List.length) {
+                playSound('win');
+                document.getElementById('m3-feedback').innerHTML = `<span class="text-emerald-800 bg-white border-2 border-black px-4 py-2 rounded-2xl">🍛 TAHNIAH! Nasi Goreng Mario sedia dihidangkan!</span>`;
+                setTimeout(() => {
+                    showWinModal("Tahniah! Anda berjaya mengelaskan semua bahan untuk Resepi Nasi Goreng Mario!");
+                }, 800);
+                return;
+            }
+
+            const current = m3List[m3Index];
+            document.getElementById('m3-target-emoji').textContent = current.emoji;
+            document.getElementById('m3-target-nama-bm').textContent = current.namaBM;
+        }
+
+        function answerMode3(chosenCategory) {
+            const current = m3List[m3Index];
+            const feedback = document.getElementById('m3-feedback');
+
+            if (current.kategori === chosenCategory) {
+                playSound('correct');
+                addScore(15);
+                const katText = chosenCategory === 'kering' ? 'KERING' : 'BASAH';
+                feedback.innerHTML = `<span class="text-green-800 bg-green-200 border-2 border-green-600 px-4 py-1.5 rounded-2xl">✅ TEPAT! ${current.namaBM} ialah Bahan ${katText}!</span>`;
+
+                setTimeout(() => {
+                    m3Index++;
+                    renderMode3Question();
+                }, 1000);
+            } else {
+                playSound('wrong');
+                const correctKat = current.kategori === 'kering' ? 'KERING' : 'BASAH';
+                feedback.innerHTML = `<span class="text-red-600 bg-red-100 border-2 border-red-600 px-4 py-1.5 rounded-2xl">❌ SALAH! ${current.namaBM} ialah Bahan ${correctKat}. Cuba lagi!</span>`;
+            }
+        }
+
+        /* ==================== REWARD MODAL & CANVAS ANIMATION ==================== */
+        function showWinModal(msg) {
+            document.getElementById('win-msg').textContent = msg;
+            document.getElementById('final-score').textContent = totalScore;
+            document.getElementById('win-modal').classList.remove('hidden');
+            triggerCoinsAnimation();
+        }
+
+        function closeWinModal() {
+            document.getElementById('win-modal').classList.add('hidden');
+            switchMode('satu');
+        }
+
+        /* Simple Canvas Coin / Star Shower FX */
+        const canvas = document.getElementById('fx-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function triggerCoinsAnimation() {
+            for (let i = 0; i < 30; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: -20,
+                    size: Math.random() * 20 + 15,
+                    speedY: Math.random() * 4 + 3,
+                    speedX: Math.random() * 4 - 2,
+                    symbol: Math.random() > 0.5 ? '🪙' : '🌟'
+                });
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, index) => {
+                p.y += p.speedY;
+                p.x += p.speedX;
+                ctx.font = `${p.size}px Fredoka`;
+                ctx.fillText(p.symbol, p.x, p.y);
+
+                if (p.y > canvas.height + 30) {
+                    particles.splice(index, 1);
+                }
+            });
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        /* Initialize default view on load */
+        window.onload = function() {
+            initMode1();
+        };
+    </script>
+</body>
+</html>
